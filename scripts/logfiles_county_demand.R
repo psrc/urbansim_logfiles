@@ -1,6 +1,7 @@
 # This script will read log files and tabulate county 'demand'
 
 library(tidyverse)
+library(stringr)
 
 base.dir <- "//MODELSRV8/d$/opusgit/urbansim_data/data/psrc_parcel/runs"
 run.dir <- c("run_4.run_2017_10_18_22_50") # can have multiple runs, separated by comma
