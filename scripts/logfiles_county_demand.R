@@ -72,7 +72,7 @@ dflong <- df %>% gather(attribute, value, -building_type_id, -county, -year, -ru
 
 # option to export as .csv
 concat.runs <- paste(runs %>% unlist(), collapse = "_")
-# write_csv(df, file.path(out.dir, paste0("county_demand_wide_", concat.runs, ".csv")))
-# write_csv(dflong, file.path(out.dir, paste0("county_demand_long_", concat.runs, ".csv")))
+write_csv(df, file.path(out.dir, paste0("county_demand_wide_", concat.runs, ".csv")))
+write_csv(dflong, file.path(out.dir, paste0("county_demand_long_", concat.runs, ".csv")))
 
 print("Processing complete")
