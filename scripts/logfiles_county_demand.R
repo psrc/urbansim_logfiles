@@ -1,11 +1,10 @@
 # This script will read log files and tabulate county 'demand'
 
-library(magrittr)
-library(stringr)
+library(tidyverse)
 
 base.dir <- "//MODELSRV8/d$/opusgit/urbansim_data/data/psrc_parcel/runs"
-run.dir <- c("run_4.run_2017_10_18_22_50")
-out.dir <- "C:/Users/CLam/Desktop/urbansim_logfiles/demand"
+run.dir <- c("run_4.run_2017_10_18_22_50") # can have multiple runs, separated by comma
+out.dir <- "C:/Users/CLam/Desktop/urbansim_logfiles/output"
 
 years <- seq(2015, 2040)
 
@@ -17,7 +16,7 @@ pattern.file.str <- "year_\\d+{4}_log.txt"
 # format run names for column names in table
 runs <- lapply(run.dir, function(x) unlist(strsplit(x,"[.]"))[[1]])
 
-# set-up table
+# set-up master table (wide form)
 df <- NULL
 
 for (r in 1:length(run.dir)) { # loop through each run
@@ -41,17 +40,35 @@ for (r in 1:length(run.dir)) { # loop through each run
       headers <- str_split(cnty.txt[ind.headers], "\t") %>% unlist()
       cnty.df <- data.frame(matrix(ncol = length(headers), nrow = 0)) %>% setNames(headers) # initialize empty df
       cnty.tblines <- cnty.txt[(ind.headers+1):length(cnty.txt)]
-      for (i in 1:length(cnty.tblines)) {
-        aline <- str_split(cnty.tblines[i], "\t") %>% unlist() %>% as.data.frame() %>% t() 
+      for (i in 1:length(cnty.tblines)) { # compile county lines into a mini table
+        aline <- str_split(cnty.tblines[i], "\t") %>% unlist() %>% data.frame() %>% t() 
         colnames(aline) <- headers
         cnty.df <- rbind(cnty.df, aline)
       }
+      # add additional columns
       cnty.df$county <- county
       cnty.df$year <- year
-      ifelse(is.null(df), df <- cnty.df, df <- rbind(df, cnty.df))
+      cnty.df$run <- runs[r] %>% unlist()
+      ifelse(is.null(df), df <- cnty.df, df <- rbind(df, cnty.df)) # bind to master table
     } # end counties loop
   } # end log.files loop
 } # end run.dir loop
 
+# tidy df
+df <- df %>% rename(Difference = `Difference(T-C)`, Action = `Action(P-D)`)
+colnames(df)[1] <- 'building_type_id'
+df <- df %>% 
+  mutate_each_(funs(as.character), c('Target', 'Current', 'Difference', 'Proposed', 'Demolished', 'Action')) %>%
+  mutate_each_(funs(as.numeric), c('Target', 'Current', 'Difference', 'Proposed', 'Demolished'))
+df$Action <- gsub("\\+", "", df$Action) # remove symbol
+df <- df %>% mutate(Action = as.numeric(Action))
+
+# create long form df
+dflong <- df %>% gather(attribute, value, -building_type_id, -county, -year, -run)
+
+# option to export as .csv
+concat.runs <- paste(runs %>% unlist(), collapse = "_")
+write_csv(df, file.path(out.dir, paste0("county_demand_wide_", concat.runs, ".csv")))
+write_csv(dflong, file.path(out.dir, paste0("county_demand_long_", concat.runs, ".csv")))
 
 print("Processing complete")
