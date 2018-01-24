@@ -3,8 +3,9 @@
 library(tidyverse)
 library(stringr)
 
-base.dir <- "//MODELSRV8/d$/opusgit/urbansim_data/data/psrc_parcel/runs"
-run.dir <- c("run_4.run_2017_10_18_22_50") # can have multiple runs, separated by comma
+# base.dir <- "//MODELSRV8/d$/opusgit/urbansim_data/data/psrc_parcel/runs"
+base.dir <- "//modelsrv6/d$/opusgit/urbansim_data/data/psrc_parcel/runs"
+run.dir <- c("run_40.run_2018_01_18_14_26") # can have multiple runs, separated by comma
 out.dir <- "C:/Users/CLam/Desktop/urbansim_logfiles/output"
 
 years <- seq(2015, 2040)
@@ -63,8 +64,10 @@ for (r in 1:length(run.dir)) { # for each run
 df <- df %>% rename(Difference = `Difference(T-C)`, Action = `Action(P-D)`)
 colnames(df)[1] <- 'building_type_id' # rename to trim whitespace
 df <- df %>% 
-  mutate_each_(funs(as.character), c('Target', 'Current', 'Difference', 'Proposed', 'Demolished', 'Action')) %>%
-  mutate_each_(funs(as.numeric), c('Target', 'Current', 'Difference', 'Proposed', 'Demolished'))
+  # mutate_each_(funs(as.character), c('Target', 'Current', 'Difference', 'Proposed', 'Demolished', 'Action')) %>%
+  # mutate_each_(funs(as.numeric), c('Target', 'Current', 'Difference', 'Proposed', 'Demolished'))
+  mutate_at(c('Target', 'Current', 'Difference', 'Proposed', 'Demolished', 'Action'), funs(as.character)) %>%
+  mutate_at(c('Target', 'Current', 'Difference', 'Proposed', 'Demolished'), funs(as.numeric))
 df$Action <- gsub("\\+", "", df$Action) # remove symbol
 df <- df %>% mutate(Action = as.numeric(Action))
 
