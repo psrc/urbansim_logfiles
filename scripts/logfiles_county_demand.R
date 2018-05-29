@@ -3,12 +3,26 @@
 library(tidyverse)
 library(stringr)
 
-# base.dir <- "//MODELSRV8/d$/opusgit/urbansim_data/data/psrc_parcel/runs"
-base.dir <- "//modelsrv6/d$/opusgit/urbansim_data/data/psrc_parcel/runs"
-run.dir <- c("run_40.run_2018_01_18_14_26") # can have multiple runs, separated by comma
+# user input
+run.dir <- c("run_8.run_2018_05_08_16_46", "run_7.run_2018_05_08_12_57") # can have multiple runs
 out.dir <- "C:/Users/CLam/Desktop/urbansim_logfiles/output"
+years <- seq(2015, 2050)
 
-years <- seq(2015, 2040)
+# all modelservers
+base <- list(Modelsrv5 = "//modelsrv5/d$/opusgit/urbansim_data/data/psrc_parcel/runs",
+             Modelsrv6 = "//modelsrv6/d$/opusgit/urbansim_data/data/psrc_parcel/runs",
+             Modelsrv8 = "//MODELSRV8/d$/opusgit/urbansim_data/data/psrc_parcel/runs",
+             Modelsrv3 = "//modelsrv3/e$/opusgit/urbansim_data/data/psrc_parcel/runs"
+             )
+
+# scan all modelservers for runs and setnames
+allruns <- list()
+for (b in 1:length(base)) {
+  fdirlist <- list.dirs(base[[b]], full.names = TRUE, recursive = FALSE)
+  ndirlist <- list.dirs(base[[b]], full.names = FALSE, recursive = FALSE)
+  dirlist <- setNames(fdirlist, ndirlist)
+  ifelse(is.null(allruns), allruns <- dirlist, allruns <- append(allruns, dirlist))
+}
 
 counties <- c("33", "35", "53", "61")
 
@@ -25,10 +39,11 @@ runs <- lapply(run.dir, function(x) unlist(strsplit(x,"[.]"))[[1]])
 df <- NULL
 
 for (r in 1:length(run.dir)) { # for each run
-  log.files.all <- list.files(file.path(base.dir, run.dir[r]), pattern = pattern.file.str)
+  base.dir <- pluck(allruns, run.dir[r])
+  log.files.all <- list.files(base.dir, pattern = pattern.file.str)
   log.files <- unique(grep(paste(years, collapse = "|"), log.files.all, value=TRUE))
   for (l in 1:length(log.files)) { # for each log file
-    txt <- readLines(file.path(base.dir, run.dir[r], log.files[l]))
+    txt <- readLines(file.path(base.dir, log.files[l]))
     year <- str_extract(log.files[l], "\\d+")
     print(paste("reading", runs[r], str_match(log.files[l], "\\d+"), "log"))
     for (county in counties) { # for each county
@@ -51,10 +66,16 @@ for (r in 1:length(run.dir)) { # for each run
         colnames(aline) <- headers
         cnty.df <- rbind(cnty.df, aline)
       }
+      colnames(cnty.df) <- lapply(colnames(cnty.df), trimws)
+      # query for county
+      cnty.df$county_id <- as.character(cnty.df$county_id) %>% trimws()
+      cnty.df <- subset(cnty.df, county_id == county)
       # add additional columns
       cnty.df$county <- county
       cnty.df$year <- year
       cnty.df$run <- runs[r] %>% unlist()
+      # remove county_id
+      cnty.df <- cnty.df[, 2:ncol(cnty.df)]
       ifelse(is.null(df), df <- cnty.df, df <- rbind(df, cnty.df)) # bind to master table
     } # end counties loop
   } # end log.files loop
@@ -64,8 +85,6 @@ for (r in 1:length(run.dir)) { # for each run
 df <- df %>% rename(Difference = `Difference(T-C)`, Action = `Action(P-D)`)
 colnames(df)[1] <- 'building_type_id' # rename to trim whitespace
 df <- df %>% 
-  # mutate_each_(funs(as.character), c('Target', 'Current', 'Difference', 'Proposed', 'Demolished', 'Action')) %>%
-  # mutate_each_(funs(as.numeric), c('Target', 'Current', 'Difference', 'Proposed', 'Demolished'))
   mutate_at(c('Target', 'Current', 'Difference', 'Proposed', 'Demolished', 'Action'), funs(as.character)) %>%
   mutate_at(c('Target', 'Current', 'Difference', 'Proposed', 'Demolished'), funs(as.numeric))
 df$Action <- gsub("\\+", "", df$Action) # remove symbol
